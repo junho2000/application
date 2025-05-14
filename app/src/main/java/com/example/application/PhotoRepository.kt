@@ -1,0 +1,59 @@
+package com.example.application
+
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
+import java.io.File
+import retrofit2.Response
+import retrofit2.http.*
+
+interface PhotoApiService {
+    @GET("/api/photos")
+    suspend fun getPhotos(): Response<List<PhotoItem>>
+
+    @Multipart
+    @POST("/api/photos")
+    suspend fun uploadPhoto(
+        @Part file: MultipartBody.Part
+    ): Response<UploadResponse>
+
+    @DELETE("/api/photos/{filename}")
+    suspend fun deletePhoto(
+        @Path("filename") filename: String
+    ): Response<DeleteResponse>
+}
+
+data class UploadResponse(val success: Boolean, val filename: String)
+data class DeleteResponse(val success: Boolean)
+
+class PhotoRepository {
+    private val photoList = mutableListOf<PhotoItem>()
+
+    fun getPhotoList(): List<PhotoItem> = photoList
+
+    suspend fun fetchPhotoListFromServer(): Boolean = withContext(Dispatchers.IO) {
+        val response = RetrofitInstance.api.getPhotos()
+        if (response.isSuccessful && response.body() != null) {
+            photoList.clear()
+            photoList.addAll(response.body()!!)
+            true
+        } else {
+            false
+        }
+    }
+
+    suspend fun uploadPhotoToServer(filePath: String): Boolean = withContext(Dispatchers.IO) {
+        val file = File(filePath)
+        val requestFile = RequestBody.create("image/*".toMediaTypeOrNull(), file)
+        val body = MultipartBody.Part.createFormData("file", file.name, requestFile)
+        val response = RetrofitInstance.api.uploadPhoto(body)
+        response.isSuccessful && response.body()?.success == true
+    }
+
+    suspend fun deletePhotoFromServer(filename: String): Boolean = withContext(Dispatchers.IO) {
+        val response = RetrofitInstance.api.deletePhoto(filename)
+        response.isSuccessful && response.body()?.success == true
+    }
+}
