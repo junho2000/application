@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- 기본적으로 cleartext 차단 -->
+    <base-config cleartextTrafficPermitted="false" />
+
+    <!-- 192.168.32.1 에 한해 cleartext 허용 -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">192.168.32.1</domain>
+    </domain-config>
+</network-security-config>
