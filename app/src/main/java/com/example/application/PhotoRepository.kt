@@ -81,4 +81,18 @@ class PhotoRepository {
         val response = RetrofitInstance.api.deleteThumbnail(filename)
         response.isSuccessful && response.body()?.success == true
     }
+
+    suspend fun uploadPhotoAndThumbnail(filePath: String): Boolean = withContext(Dispatchers.IO) {
+        // 1. 원본 사진 업로드
+        val photoUploadSuccess = uploadPhotoToServer(filePath)
+        if (!photoUploadSuccess) return@withContext false
+    
+        // 2. 파일명 추출 (서버에 업로드한 파일명과 동일해야 함)
+        val file = File(filePath)
+        val filename = file.name
+    
+        // 3. 썸네일 업로드
+        val thumbnailUploadSuccess = uploadThumbnailToServer(filename, filePath)
+        return@withContext thumbnailUploadSuccess
+    }
 }
