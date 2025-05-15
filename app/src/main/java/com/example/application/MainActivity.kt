@@ -102,7 +102,7 @@ fun PhotoListScreen(
                         val baseUrl = "http://192.168.32.1:5000" // 실제 라즈베리파이 IP로 변경
                         AsyncImage(
                             model = ImageRequest.Builder(context)
-                                .data(baseUrl + photo.url)
+                                .data(baseUrl + photo.thumbnailUrl)
                                 .crossfade(true)
                                 .size(128)
                                 .build(),
@@ -112,7 +112,7 @@ fun PhotoListScreen(
                                 .size(64.dp),
                             error = painterResource(R.drawable.ic_launcher_foreground),
                             onError = { error ->
-                                Log.e("AsyncImage", "이미지 로딩 실패: ${baseUrl + photo.url}, ${error.result.throwable}")
+                                Log.e("AsyncImage", "이미지 로딩 실패: ${baseUrl + photo.thumbnailUrl}, ${error.result.throwable}")
                             }
                         )
                         Text(

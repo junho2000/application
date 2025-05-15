@@ -23,6 +23,18 @@ interface PhotoApiService {
     suspend fun deletePhoto(
         @Path("filename") filename: String
     ): Response<DeleteResponse>
+
+    @Multipart
+    @POST("/api/photos/{filename}/thumbnail")
+    suspend fun uploadThumbnail(
+        @Path("filename") filename: String,
+        @Part file: MultipartBody.Part
+    ): Response<UploadResponse>
+
+    @DELETE("/api/photos/{filename}/thumbnail")
+    suspend fun deleteThumbnail(
+        @Path("filename") filename: String
+    ): Response<DeleteResponse>
 }
 
 data class UploadResponse(val success: Boolean, val filename: String)
@@ -54,6 +66,19 @@ class PhotoRepository {
 
     suspend fun deletePhotoFromServer(filename: String): Boolean = withContext(Dispatchers.IO) {
         val response = RetrofitInstance.api.deletePhoto(filename)
+        response.isSuccessful && response.body()?.success == true
+    }
+
+    suspend fun uploadThumbnailToServer(filename: String, filePath: String): Boolean = withContext(Dispatchers.IO) {
+        val file = File(filePath)
+        val requestFile = RequestBody.create("image/*".toMediaTypeOrNull(), file)
+        val body = MultipartBody.Part.createFormData("file", file.name, requestFile)
+        val response = RetrofitInstance.api.uploadThumbnail(filename, body)
+        response.isSuccessful && response.body()?.success == true
+    }
+
+    suspend fun deleteThumbnailFromServer(filename: String): Boolean = withContext(Dispatchers.IO) {
+        val response = RetrofitInstance.api.deleteThumbnail(filename)
         response.isSuccessful && response.body()?.success == true
     }
 }
