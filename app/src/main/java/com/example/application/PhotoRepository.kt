@@ -8,6 +8,7 @@ import okhttp3.RequestBody
 import java.io.File
 import retrofit2.Response
 import retrofit2.http.*
+import android.content.Context
 
 interface PhotoApiService {
     @GET("/api/photos")
@@ -35,6 +36,9 @@ interface PhotoApiService {
     suspend fun deleteThumbnail(
         @Path("filename") filename: String
     ): Response<DeleteResponse>
+
+    @GET("/api/storage")
+    suspend fun getStorageInfo(): Response<Map<String, Any>>
 }
 
 data class UploadResponse(val success: Boolean, val filename: String)
@@ -82,17 +86,44 @@ class PhotoRepository {
         response.isSuccessful && response.body()?.success == true
     }
 
-    suspend fun uploadPhotoAndThumbnail(filePath: String): Boolean = withContext(Dispatchers.IO) {
+    suspend fun uploadPhotoAndThumbnail(filePath: String, context: Context): Boolean = withContext(Dispatchers.IO) {
         // 1. 원본 사진 업로드
         val photoUploadSuccess = uploadPhotoToServer(filePath)
         if (!photoUploadSuccess) return@withContext false
     
-        // 2. 파일명 추출 (서버에 업로드한 파일명과 동일해야 함)
+        // 2. 파일명 추출
         val file = File(filePath)
         val filename = file.name
     
-        // 3. 썸네일 업로드
-        val thumbnailUploadSuccess = uploadThumbnailToServer(filename, filePath)
+        // 3. 썸네일 생성 및 업로드
+        val thumbFile = createThumbnail(filePath, context)
+        if (thumbFile == null) return@withContext false
+        val thumbnailUploadSuccess = uploadThumbnailToServer(filename, thumbFile.absolutePath)
+        thumbFile.delete()
         return@withContext thumbnailUploadSuccess
+    }
+
+    suspend fun deletePhotoAndThumbnail(filename: String): Boolean = withContext(Dispatchers.IO) {
+        // 1. 썸네일 먼저 삭제 (실패해도 무시)
+        deleteThumbnailFromServer(filename)
+        // 2. 원본 사진 삭제 (이 결과만 반환)
+        val photoDeleteSuccess = deletePhotoFromServer(filename)
+        return@withContext photoDeleteSuccess
+    }
+
+    // 라즈베리파이 스토리지 정보 조회
+    suspend fun fetchStorageInfo(): Pair<Long, Long>? = withContext(Dispatchers.IO) {
+        try {
+            val response = RetrofitInstance.api.getStorageInfo()
+            if (response.isSuccessful && response.body() != null) {
+                val body = response.body()!!
+                val used = (body["used_bytes"] as? Number)?.toLong() ?: return@withContext null
+                val total = (body["total_bytes"] as? Number)?.toLong() ?: return@withContext null
+                return@withContext Pair(used, total)
+            }
+        } catch (e: Exception) {
+            // ignore
+        }
+        return@withContext null
     }
 }
